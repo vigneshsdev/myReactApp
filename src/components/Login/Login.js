@@ -1,42 +1,51 @@
-// filepath: src/components/Login/Login.js
-import React, { useState } from 'react';
+import React from 'react';
+import { useAuth0 } from '@auth0/auth0-react';
 import { useNavigate } from 'react-router-dom';
-import axios from 'axios';
 
-function Login() {
-    const [username, setUsername] = useState('');
-    const [password, setPassword] = useState('');
-    const navigate = useNavigate();
+const Login = () => {
+  const { loginWithRedirect, logout, user, isAuthenticated, getAccessTokenSilently } = useAuth0();
+  const navigate = useNavigate();
 
-    const handleLogin = async (e) => {
-        e.preventDefault();
+  React.useEffect(() => {
+    const getTokenAndRedirect = async () => {
+      if (isAuthenticated && user) {
         try {
-            const response = await axios.post('/api/login', { username, password });
-            if (response.data.role === 'admin') {
-                navigate('/admin');
-            } else if (response.data.role === 'agent') {
-                navigate('/agent');
-            } else {
-                navigate('/policyholder');
-            }
+          const token = await getAccessTokenSilently();
+          console.log('Access Token:', token);
+
+          // Assuming user roles are stored in user['https://example.com/roles']
+          const roles = user['https://example.com/roles'] || [];
+
+          if (roles.includes('admin')) {
+            navigate('/admin');
+          } else if (roles.includes('agent')) {
+            navigate('/agent');
+          } else {
+            navigate('/policyholder');
+          }
         } catch (error) {
-            console.error('Login failed', error);
+          console.error('Error getting access token:', error);
         }
+      }
     };
 
-    return (
-        <form onSubmit={handleLogin}>
-            <div>
-                <label>Username:</label>
-                <input type="text" value={username} onChange={(e) => setUsername(e.target.value)} />
-            </div>
-            <div>
-                <label>Password:</label>
-                <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} />
-            </div>
-            <button type="submit">Login</button>
-        </form>
-    );
-}
+    getTokenAndRedirect();
+  }, [isAuthenticated, user, navigate, getAccessTokenSilently]);
+
+  return (
+    <div>
+      {!isAuthenticated ? (
+        <button onClick={() => loginWithRedirect()}>Log In</button>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', alignItems: 'center' }}>
+          <h2>Welcome {user.name}</h2>
+          <button onClick={() => logout({ returnTo: window.location.origin })}>
+            Log Out
+          </button>
+        </div>
+      )}
+    </div>
+  );
+};
 
 export default Login;
